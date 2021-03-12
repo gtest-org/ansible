@@ -1,4 +1,6 @@
-Sanity Tests » ansible-var-precedence-check
-===========================================
+:orphan:
 
-Check the order of precedence for Ansible variables against :doc:`variable_precedence`.
+ansible-var-precedence-check
+============================
+
+Check the order of precedence for Ansible variables against :ref:`ansible_variable_precedence`.

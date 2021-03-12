@@ -38,6 +38,7 @@ if platform.system() != 'SunOS':
 class ServiceMgrFactCollector(BaseFactCollector):
     name = 'service_mgr'
     _fact_ids = set()
+    required_facts = set(['platform', 'distribution'])
 
     @staticmethod
     def is_systemd_managed(module):
@@ -49,6 +50,16 @@ class ServiceMgrFactCollector(BaseFactCollector):
             for canary in ["/run/systemd/system/", "/dev/.run/systemd/", "/dev/.systemd/"]:
                 if os.path.exists(canary):
                     return True
+        return False
+
+    @staticmethod
+    def is_systemd_managed_offline(module):
+        # tools must be installed
+        if module.get_bin_path('systemctl'):
+            # check if /sbin/init is a symlink to systemd
+            # on SUSE, /sbin/init may be missing if systemd-sysvinit package is not installed.
+            if os.path.islink('/sbin/init') and os.path.basename(os.readlink('/sbin/init')) == 'systemd':
+                return True
         return False
 
     def collect(self, module=None, collected_facts=None):
@@ -105,22 +116,22 @@ class ServiceMgrFactCollector(BaseFactCollector):
 
         # FIXME: replace with a system->service_mgr_name map?
         # start with the easy ones
-        elif collected_facts.get('distribution', None) == 'MacOSX':
+        elif collected_facts.get('ansible_distribution', None) == 'MacOSX':
             # FIXME: find way to query executable, version matching is not ideal
             if LooseVersion(platform.mac_ver()[0]) >= LooseVersion('10.4'):
                 service_mgr_name = 'launchd'
             else:
                 service_mgr_name = 'systemstarter'
-        elif 'BSD' in collected_facts.get('system', '') or collected_facts.get('system') in ['Bitrig', 'DragonFly']:
+        elif 'BSD' in collected_facts.get('ansible_system', '') or collected_facts.get('ansible_system') in ['Bitrig', 'DragonFly']:
             # FIXME: we might want to break out to individual BSDs or 'rc'
             service_mgr_name = 'bsdinit'
-        elif collected_facts.get('system') == 'AIX':
+        elif collected_facts.get('ansible_system') == 'AIX':
             service_mgr_name = 'src'
-        elif collected_facts.get('system') == 'SunOS':
+        elif collected_facts.get('ansible_system') == 'SunOS':
             service_mgr_name = 'smf'
-        elif collected_facts.get('distribution') == 'OpenWrt':
+        elif collected_facts.get('ansible_distribution') == 'OpenWrt':
             service_mgr_name = 'openwrt_init'
-        elif collected_facts.get('system') == 'Linux':
+        elif collected_facts.get('ansible_system') == 'Linux':
             # FIXME: mv is_systemd_managed
             if self.is_systemd_managed(module=module):
                 service_mgr_name = 'systemd'
@@ -128,6 +139,8 @@ class ServiceMgrFactCollector(BaseFactCollector):
                 service_mgr_name = 'upstart'
             elif os.path.exists('/sbin/openrc'):
                 service_mgr_name = 'openrc'
+            elif self.is_systemd_managed_offline(module=module):
+                service_mgr_name = 'systemd'
             elif os.path.exists('/etc/init.d/'):
                 service_mgr_name = 'sysvinit'
 

@@ -17,7 +17,7 @@
 #
 
 # Make coding more python3-ish
-from __future__ import (absolute_import, division)
+from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import os
@@ -25,8 +25,8 @@ import os
 import pytest
 
 # for testing
-from ansible.compat.tests import unittest
-from ansible.compat.tests.mock import Mock, patch
+from units.compat import unittest
+from units.compat.mock import Mock, patch
 
 from ansible.module_utils import facts
 from ansible.module_utils.facts import hardware
@@ -265,7 +265,9 @@ LSBLK_OUTPUT_2 = b"""
 
 LSBLK_UUIDS = {'/dev/sda1': '66Ojcd-ULtu-1cZa-Tywo-mx0d-RF4O-ysA9jK'}
 
-MTAB = """
+UDEVADM_UUID = 'N/A'
+
+MTAB = r"""
 sysfs /sys sysfs rw,seclabel,nosuid,nodev,noexec,relatime 0 0
 proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
 devtmpfs /dev devtmpfs rw,seclabel,nosuid,size=8044400k,nr_inodes=2011100,mode=755 0 0
@@ -304,6 +306,7 @@ grimlock.g.a: /home/adrian/sshfs-grimlock fuse.sshfs rw,nosuid,nodev,relatime,us
 grimlock.g.a:test_path/path_with'single_quotes /home/adrian/sshfs-grimlock-single-quote fuse.sshfs rw,nosuid,nodev,relatime,user_id=1000,group_id=1000 0 0
 grimlock.g.a:path_with'single_quotes /home/adrian/sshfs-grimlock-single-quote-2 fuse.sshfs rw,nosuid,nodev,relatime,user_id=1000,group_id=1000 0 0
 grimlock.g.a:/mnt/data/foto's /home/adrian/fotos fuse.sshfs rw,nosuid,nodev,relatime,user_id=1000,group_id=1000 0 0
+\\Windows\share /data/ cifs credentials=/root/.creds 0 0
 """
 
 MTAB_ENTRIES = [
@@ -512,7 +515,12 @@ MTAB_ENTRIES = [
         '0',
         '0'
     ],
-    ['fusectl', '/sys/fs/fuse/connections', 'fusectl', 'rw,relatime', '0', '0']]
+    ['fusectl', '/sys/fs/fuse/connections', 'fusectl', 'rw,relatime', '0', '0'],
+    # Mount path with space in the name
+    # The space is encoded as \040 since the fields in /etc/mtab are space-delimeted
+    ['/dev/sdz9', r'/mnt/foo\040bar', 'ext4', 'rw,relatime', '0', '0'],
+    ['\\\\Windows\\share', '/data/', 'cifs', 'credentials=/root/.creds', '0', '0'],
+]
 
 BIND_MOUNTS = ['/not/a/real/bind_mount']
 
@@ -536,10 +544,12 @@ class TestFactsLinuxHardwareGetMountFacts(unittest.TestCase):
     @patch('ansible.module_utils.facts.hardware.linux.LinuxHardware._mtab_entries', return_value=MTAB_ENTRIES)
     @patch('ansible.module_utils.facts.hardware.linux.LinuxHardware._find_bind_mounts', return_value=BIND_MOUNTS)
     @patch('ansible.module_utils.facts.hardware.linux.LinuxHardware._lsblk_uuid', return_value=LSBLK_UUIDS)
+    @patch('ansible.module_utils.facts.hardware.linux.LinuxHardware._udevadm_uuid', return_value=UDEVADM_UUID)
     def test_get_mount_facts(self,
                              mock_lsblk_uuid,
                              mock_find_bind_mounts,
-                             mock_mtab_entries):
+                             mock_mtab_entries,
+                             mock_udevadm_uuid):
         module = Mock()
         # Returns a LinuxHardware-ish
         lh = hardware.linux.LinuxHardware(module=module, load_on_init=False)
@@ -551,6 +561,11 @@ class TestFactsLinuxHardwareGetMountFacts(unittest.TestCase):
         self.assertIsInstance(mount_facts['mounts'], list)
         self.assertIsInstance(mount_facts['mounts'][0], dict)
 
+        # Find mounts with space in the mountpoint path
+        mounts_with_space = [x for x in mount_facts['mounts'] if ' ' in x['mount']]
+        self.assertEqual(len(mounts_with_space), 1)
+        self.assertEqual(mounts_with_space[0]['mount'], '/mnt/foo bar')
+
     @patch('ansible.module_utils.facts.hardware.linux.get_file_content', return_value=MTAB)
     def test_get_mtab_entries(self, mock_get_file_content):
 
@@ -559,7 +574,7 @@ class TestFactsLinuxHardwareGetMountFacts(unittest.TestCase):
         mtab_entries = lh._mtab_entries()
         self.assertIsInstance(mtab_entries, list)
         self.assertIsInstance(mtab_entries[0], list)
-        self.assertEqual(len(mtab_entries), 38)
+        self.assertEqual(len(mtab_entries), 39)
 
     @patch('ansible.module_utils.facts.hardware.linux.LinuxHardware._run_findmnt', return_value=(0, FINDMNT_OUTPUT, ''))
     def test_find_bind_mounts(self, mock_run_findmnt):

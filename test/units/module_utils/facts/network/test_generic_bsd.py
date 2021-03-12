@@ -15,11 +15,11 @@
 #
 
 # Make coding more python3-ish
-from __future__ import (absolute_import, division)
+from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-from ansible.compat.tests.mock import Mock
-from ansible.compat.tests import unittest
+from units.compat.mock import Mock
+from units.compat import unittest
 
 from ansible.module_utils.facts.network import generic_bsd
 

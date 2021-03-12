@@ -1,96 +1,51 @@
-Developing Modules
-==================
-
-.. contents:: Topics
-
-.. _module_dev_welcome:
-
-Welcome
-```````
-This section discusses how to develop, debug, review, and test modules.
-
-
-Ansible modules are reusable, standalone scripts that can be used by the Ansible API,
-or by the :command:`ansible` or :command:`ansible-playbook` programs.  They
-return information to ansible by printing a JSON string to stdout before
-exiting.  They take arguments in one of several ways which we'll go into
-as we work through this tutorial.
-
-See :doc:`../modules` for a list of existing modules.
-
-Modules can be written in any language and are found in the path specified
-by :envvar:`ANSIBLE_LIBRARY` or the ``--module-path`` command line option or
-in the `library section of the Ansible configuration file <http://docs.ansible.com/ansible/intro_configuration.html#library>`_.
-
+.. _developing_modules:
 .. _module_dev_should_you:
 
-Should You Develop A Module?
-````````````````````````````
-Before diving into the work of creating a new module, you should think about whether you actually *should*
-develop a module. Ask the following questions:
+****************************
+Should you develop a module?
+****************************
+
+Developing Ansible modules is easy, but often it is not necessary. Before you start writing a new module, ask:
 
 1. Does a similar module already exist?
 
-There are a lot of existing modules available, you should check out the list of existing modules at :doc:`../modules`
+An existing module may cover the functionality you want. Ansible collections include thousands of modules. Search our :ref:`list of included collections <list_of_collections>` or `Ansible Galaxy <https://galaxy.ansible.com>`_ to see if an existing module does what you need.
 
-2. Has someone already worked on a similar Pull Request?
+2. Should you use or develop an action plugin instead of a module?
 
-It's possible that someone has already started developing a similar PR. There are a few ways to find open module Pull Requests:
+An action plugin may be the best way to get the functionality you want. Action plugins run on the control node instead of on the managed node, and their functionality is available to all modules. For more information about developing plugins, read the :ref:`developing plugins page <developing_plugins>`.
 
-* `GitHub new module PRs <https://github.com/ansible/ansible/labels/new_module>`_
-* `All updates to modules <https://github.com/ansible/ansible/labels/module>`_
-* `New module PRs listed by directory <https://ansible.sivel.net/pr/byfile.html>`_ search for `lib/ansible/modules/`
+3. Should you use a role instead of a module?
 
-If you find an existing PR that looks like it addresses the issue you are trying to solve, please provide feedback on the PR -  this will speed up getting the PR merged.
+A combination of existing modules may cover the functionality you want. You can write a role for this type of use case. Check out the :ref:`roles documentation<playbooks_reuse_roles>`.
 
-3. Should you use or develop an action plugin instead?
+4. Should you create a collection instead of a single module?
 
-Action plugins get run on the master instead of on the target. For modules like file/copy/template, some of the work needs to be done on the master before the module executes on the target. Action plugins execute first on the master and can then execute the normal module on the target if necessary.
+The functionality you want may be too large for a single module. If you want to connect Ansible to a new cloud provider, database, or network platform, you may need to :ref:`develop a new collection<developing_modules_in_groups>`.
 
-For more information about action plugins, `read the action plugins documentation here <https://docs.ansible.com/ansible/dev_guide/developing_plugins.html>`_.
+* Each module should have a concise and well defined functionality. Basically, follow the UNIX philosophy of doing one thing well.
 
-4. Should you use a role instead?
+* A module should not require that a user know all the underlying options of an API/tool to be used. For instance, if the legal values for a required module parameter cannot be documented, that's a sign that the module would be rejected.
 
-Check out the roles documentation `available here <http://docs.ansible.com/ansible/playbooks_reuse_roles.html#roles>`_.
+* Modules should typically encompass much of the logic for interacting with a resource. A lightweight wrapper around an API that does not contain much logic would likely cause users to offload too much logic into a playbook, and for this reason the module would be rejected. Instead try creating multiple modules for interacting with smaller individual pieces of the API.
 
+If your use case isn't covered by an existing module, an action plugin, or a role, and you don't need to create multiple modules, then you're ready to start developing a new module. Choose from the topics below for next steps:
 
-.. _developing_modules_all:
-
-How To Develop A Module
-```````````````````````
-
-The following topics will discuss how to develop and work with modules:
-
-:doc:`developing_modules_general`
-    A general overview of how to develop, debug, and test modules.
-:doc:`developing_modules_documenting`
-    How to include in-line documentation in your module.
-:doc:`developing_modules_best_practices`
-    Best practices, recommendations, and things to avoid.
-:doc:`developing_modules_checklist`
-     Checklist for contributing your module to Ansible.
-:doc:`testing`
-    Developing unit and integration tests.
-:doc:`developing_python3`
-    Adding Python 3 support to modules (all new modules must be Python-2.6 and Python-3.5 compatible).
-:doc:`developing_modules_in_groups`
-    A guide for partners wanting to submit multiple modules.
-
+* I want to :ref:`get started on a new module <developing_modules_general>`.
+* I want to review :ref:`tips and conventions for developing good modules <developing_modules_best_practices>`.
+* I want to :ref:`write a Windows module <developing_modules_general_windows>`.
+* I want :ref:`an overview of Ansible's architecture <developing_program_flow_modules>`.
+* I want to :ref:`document my module <developing_modules_documenting>`.
+* I want to :ref:`contribute my module back to Ansible Core <developing_modules_checklist>`.
+* I want to :ref:`add unit and integration tests to my module <developing_testing>`.
+* I want to :ref:`add Python 3 support to my module <developing_python_3>`.
+* I want to :ref:`write multiple modules <developing_modules_in_groups>`.
 
 .. seealso::
 
-   :doc:`../modules`
-       Learn about available modules
-   :doc:`developing_plugins`
-       Learn about developing plugins
-   :doc:`developing_api`
-       Learn about the Python API for playbook and task execution
-   `GitHub modules directory <https://github.com/ansible/ansible/tree/devel/lib/ansible/modules>`_
-       Browse module source code
-   `Mailing List <http://groups.google.com/group/ansible-devel>`_
+   :ref:`list_of_collections`
+       Browse existing collections, modules, and plugins
+   `Mailing List <https://groups.google.com/group/ansible-devel>`_
        Development mailing list
    `irc.freenode.net <http://irc.freenode.net>`_
        #ansible IRC chat channel
-
-
-.. include:: ./developing_module_utilities.rst

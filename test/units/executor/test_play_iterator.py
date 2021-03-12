@@ -19,13 +19,11 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
-from ansible.compat.tests import unittest
-from ansible.compat.tests.mock import patch, MagicMock
+from units.compat import unittest
+from units.compat.mock import patch, MagicMock
 
-from ansible.errors import AnsibleError, AnsibleParserError
 from ansible.executor.play_iterator import HostState, PlayIterator
 from ansible.playbook import Playbook
-from ansible.playbook.task import Task
 from ansible.playbook.play_context import PlayContext
 
 from units.mock.loader import DictDataLoader
@@ -34,14 +32,8 @@ from units.mock.path import mock_unfrackpath_noop
 
 class TestPlayIterator(unittest.TestCase):
 
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
-
     def test_host_state(self):
-        hs = HostState(blocks=[x for x in range(0, 10)])
+        hs = HostState(blocks=list(range(0, 10)))
         hs.tasks_child_state = HostState(blocks=[0])
         hs.rescue_child_state = HostState(blocks=[1])
         hs.always_child_state = HostState(blocks=[2])
@@ -155,16 +147,6 @@ class TestPlayIterator(unittest.TestCase):
             all_vars=dict(),
         )
 
-        # lookup up an original task
-        target_task = p._entries[0].tasks[0].block[0]
-        task_copy = target_task.copy(exclude_parent=True)
-        found_task = itr.get_original_task(hosts[0], task_copy)
-        self.assertEqual(target_task, found_task)
-
-        bad_task = Task()
-        found_task = itr.get_original_task(hosts[0], bad_task)
-        self.assertIsNone(found_task)
-
         # pre task
         (host_state, task) = itr.get_next_task_for_host(hosts[0])
         self.assertIsNotNone(task)
@@ -240,6 +222,11 @@ class TestPlayIterator(unittest.TestCase):
         (host_state, task) = itr.get_next_task_for_host(hosts[0])
         self.assertIsNotNone(task)
         self.assertEqual(task.name, "end of role nested block 2")
+        self.assertIsNotNone(task._role)
+        # implicit meta: role_complete
+        (host_state, task) = itr.get_next_task_for_host(hosts[0])
+        self.assertIsNotNone(task)
+        self.assertEqual(task.action, 'meta')
         self.assertIsNotNone(task._role)
         # regular play task
         (host_state, task) = itr.get_next_task_for_host(hosts[0])
